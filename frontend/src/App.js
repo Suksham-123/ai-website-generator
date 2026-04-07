@@ -4,151 +4,207 @@ import Footer from './components/Footer';
 import GeneratorForm from './components/GeneratorForm';
 
 function App() {
-  const [mode, setMode] = useState('custom'); // 'openai' or 'custom'
-  const [customType, setCustomType] = useState('landing');
-
+  const [prompt, setPrompt] = useState('');
   const [htmlContent, setHtmlContent] = useState('');
   const [cssContent, setCssContent] = useState('');
   const [jsContent, setJsContent] = useState('');
+  const [language, setLanguage] = useState('en');
+  const [mode, setMode] = useState('custom');
 
-  const handleGenerate = async (prompt) => {
+  const BACKEND = 'https://ai-website-generator.onrender.com';
+
+  // 🔥 Generate Website
+  const handleGenerate = async (customPrompt) => {
+    const finalPrompt = customPrompt || prompt;
+
     try {
+      const endpoint =
+        mode === 'openai'
+          ? `${BACKEND}/api/generate-openai`
+          : `${BACKEND}/api/generate-custom`;
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: finalPrompt }),
+      });
+
       if (mode === 'openai') {
-        const res = await fetch('http://localhost:5000/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt }),
-        });
-        const data = await res.json();
-        setHtmlContent(data.code || '');
-        setCssContent('');
-        setJsContent('');
+        const { code } = await res.json();
+        setHtmlContent(code);
       } else {
-        const res = await fetch('http://localhost:5000/api/generate-custom', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: customType }),
-        });
         const html = await res.text();
         setHtmlContent(html);
-        setCssContent('');
-        setJsContent('');
       }
+
+      setCssContent('');
+      setJsContent('');
     } catch (err) {
-      alert('Error: ' + err.message);
+      alert('Error generating site: ' + err.message);
     }
   };
 
+  // 📦 Download ZIP
   const handleDownload = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/download-custom', {
+      const res = await fetch(`${BACKEND}/api/download-custom`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: customType,
+          type: 'website',
           html: htmlContent,
           css: cssContent,
           js: jsContent,
         }),
       });
 
-      if (!res.ok || res.headers.get('Content-Type') !== 'application/zip') {
-        const text = await res.text();
-        alert('Download failed: ' + text);
-        return;
-      }
-
       const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${customType}.zip`;
+      a.download = 'website.zip';
       a.click();
-      window.URL.revokeObjectURL(url);
+      URL.revokeObjectURL(url);
     } catch (err) {
       alert('Download error: ' + err.message);
     }
   };
 
-  const getFullPreview = () => `
-    <html>
-    <head><style>${cssContent}</style></head>
-    <body>
-      ${htmlContent}
-      <script>${jsContent}</script>
-    </body>
-    </html>
-  `;
+  // 🔍 Live Preview
+  const getFullPreview = () =>
+    `<html>
+      <head><style>${cssContent}</style></head>
+      <body>
+        ${htmlContent}
+        <script>${jsContent}</script>
+      </body>
+    </html>`;
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
 
       <main className="flex-grow container mx-auto p-6">
-        <div className="mb-6 flex gap-4 items-center">
-          <label className="font-semibold">Choose Generator:</label>
+
+        {/* 🌐 Language + Mode */}
+        <div className="flex gap-4 mb-4 flex-wrap">
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="p-2 border rounded"
+          >
+            <option value="en">English</option>
+            <option value="hi">हिंदी</option>
+          </select>
+
           <select
             value={mode}
             onChange={(e) => setMode(e.target.value)}
-            className="p-2 border border-gray-300 rounded"
+            className="p-2 border rounded"
           >
-            <option value="openai">OpenAI API</option>
-            <option value="custom">Custom Editor</option>
+            <option value="custom">Custom Template</option>
+            <option value="openai">OpenAI</option>
           </select>
-
-          {mode === 'custom' && (
-            <select
-              value={customType}
-              onChange={(e) => setCustomType(e.target.value)}
-              className="p-2 border border-gray-300 rounded"
-            >
-              <option value="landing">Landing</option>
-              <option value="portfolio">Portfolio</option>
-              <option value="blog">Blog</option>
-            </select>
-          )}
         </div>
 
-        <GeneratorForm onSubmit={handleGenerate} />
+        {/* ⚠️ Warning */}
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded">
+          ⚠️ AI generation is limited due to API quota. You can explore demo outputs.
+        </div>
 
-        {/* Output for OpenAI */}
-        {mode === 'openai' ? (
-          <>
-            <div className="mt-6 border rounded overflow-hidden h-[500px] shadow-lg">
-              <iframe
-                title="OpenAI Preview"
-                srcDoc={getFullPreview()}
-                className="w-full h-full"
-                sandbox=""
-              />
-            </div>
+        {/* 🎯 Demo Buttons */}
+        <div className="flex gap-3 mb-4 flex-wrap">
+          <button
+            onClick={() => {
+              const demo = 'Create a modern business landing page';
+              setPrompt(demo);
+              handleGenerate(demo);
+            }}
+            className="bg-gray-800 text-white px-3 py-1 rounded hover:bg-gray-700"
+          >
+            Try Demo 1
+          </button>
 
-            <button
-              className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-              onClick={handleDownload}
-            >
-              Download Website (HTML+CSS+JS)
-            </button>
-          </>
-        ) : (
-          <>
-            <div className="mt-6 border rounded overflow-hidden h-[500px] shadow-lg">
-              <iframe
-                title="Live Site Preview"
-                srcDoc={getFullPreview()}
-                className="w-full h-full"
-                sandbox=""
-              />
-            </div>
+          <button
+            onClick={() => {
+              const demo = 'Build a developer portfolio website';
+              setPrompt(demo);
+              handleGenerate(demo);
+            }}
+            className="bg-gray-800 text-white px-3 py-1 rounded hover:bg-gray-700"
+          >
+            Try Demo 2
+          </button>
 
-            <button
-              className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-              onClick={handleDownload}
-            >
-              Download Website (HTML+CSS+JS)
-            </button>
-          </>
-        )}
+          <button
+            onClick={() => {
+              const demo = 'Create a blog website for tech articles';
+              setPrompt(demo);
+              handleGenerate(demo);
+            }}
+            className="bg-gray-800 text-white px-3 py-1 rounded hover:bg-gray-700"
+          >
+            Try Demo 3
+          </button>
+        </div>
+
+        {/* 🧠 Input */}
+        <GeneratorForm
+          onSubmit={(val) => {
+            setPrompt(val);
+            handleGenerate(val);
+          }}
+          placeholder={
+            language === 'hi'
+              ? 'अपनी वेबसाइट के बारे में लिखें...'
+              : 'Describe your website...'
+          }
+        />
+
+        {/* 🛠 Editors */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+          <textarea
+            value={htmlContent}
+            onChange={(e) => setHtmlContent(e.target.value)}
+            placeholder="HTML"
+            className="border p-2 rounded text-sm font-mono h-48"
+          />
+          <textarea
+            value={cssContent}
+            onChange={(e) => setCssContent(e.target.value)}
+            placeholder="CSS"
+            className="border p-2 rounded text-sm font-mono h-48"
+          />
+          <textarea
+            value={jsContent}
+            onChange={(e) => setJsContent(e.target.value)}
+            placeholder="JavaScript"
+            className="border p-2 rounded text-sm font-mono h-48"
+          />
+        </div>
+
+        {/* 🔍 Preview */}
+        <div className="mt-6 border rounded h-[500px] overflow-hidden shadow-lg">
+          <iframe
+            title="Preview"
+            srcDoc={getFullPreview()}
+            className="w-full h-full"
+          />
+        </div>
+
+        {/* 📦 Download */}
+        <button
+          onClick={handleDownload}
+          className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Download Website
+        </button>
+
+        {/* 💡 Tech Line (IMPORTANT for Resume) */}
+        <p className="text-center text-sm text-gray-500 mt-6">
+          Built using OpenAI API, React, and cloud deployment for real-time website generation.
+        </p>
+
       </main>
 
       <Footer />
