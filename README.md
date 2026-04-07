@@ -1,6 +1,6 @@
 # AI Website Generator 🌐🤖
 
-A full-stack web application that allows users to generate responsive websites by simply entering prompts in **English, Hindi**, or any other language — no coding required!
+Built an AI-powered website generator that creates responsive websites from user prompts using OpenAI API. Designed an end-to-end workflow from prompt input to UI generation with real-time preview and deployed on Vercel. (Live generation is limited due to API quota; demo outputs included.)
 
 ## 🚀 Live Website
 
